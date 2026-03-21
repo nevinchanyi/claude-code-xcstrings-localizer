@@ -1,0 +1,23 @@
+{
+  "name": "xcstrings-localizer",
+  "version": "1.0.0",
+  "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, and format specifier validation.",
+  "author": {
+    "name": "Nevinchanyi K"
+  },
+  "homepage": "https://github.com/aspect-build/xcstrings-localizer",
+  "category": "localization",
+  "keywords": [
+    "xcstrings",
+    "localization",
+    "ios",
+    "macos",
+    "swift",
+    "xcode",
+    "translation",
+    "pluralization",
+    "cldr",
+    "string-catalog",
+    "i18n"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "xcstrings-localizer",
+  "description": "Marketplace for the xcstrings-localizer plugin — Apple .xcstrings localization with CLDR plural rules and domain-aware translations.",
+  "owner": {
+    "name": "Nevinchanyi K"
+  },
+  "plugins": [
+    {
+      "name": "xcstrings-localizer",
+      "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, and format specifier validation. Three commands: Scan Domain, Generate Comments, Localize.",
+      "source": {
+        "source": "github",
+        "repo": "aspect-build/xcstrings-localizer"
+      },
+      "version": "1.0.0",
+      "category": "localization",
+      "keywords": [
+        "xcstrings",
+        "localization",
+        "ios",
+        "swift",
+        "xcode",
+        "translation",
+        "i18n"
+      ]
+    }
+  ]
+}
