@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.pyc
+.env
+*.tmp
+domain_scan.json
+string_usages.json
+domain_report.md
