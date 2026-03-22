@@ -1,7 +1,7 @@
 {
   "name": "xcstrings-localizer",
-  "version": "1.0.0",
-  "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, and format specifier validation.",
+  "version": "1.1.0",
+  "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, format specifier validation, and grammar checking.",
   "author": {
     "name": "Nevinchanyi K"
   },

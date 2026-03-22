@@ -39,6 +39,7 @@ cp -r skills/xcstrings-localizer ~/.claude/skills/
 | 1 | **Scan Domain** | Analyzes Swift types, enums, imports, README to build a glossary of ambiguous terms (e.g., "trip" = driving journey, not vacation) |
 | 2 | **Generate Comments** | Scans Swift/Storyboard/XIB code to find string key usage, writes context + translator guidance into `.xcstrings` |
 | 3 | **Localize** | Translates with correct CLDR plural forms per language, preserved `%@`/`%lld` specifiers, and domain-accurate terms |
+| 4 | **Check Grammar** | Reviews translations for spelling, grammar, punctuation, capitalization and terminology consistency across all languages |
 
 ## Usage
 
@@ -56,10 +57,11 @@ See [USAGE_GUIDE.md](USAGE_GUIDE.md) for the full step-by-step walkthrough.
 └── marketplace.json                  — Marketplace catalog (single plugin)
 skills/
 └── xcstrings-localizer/
-    ├── SKILL.md                      — Skill instructions (3 commands)
+    ├── SKILL.md                      — Skill instructions (4 commands)
     ├── scripts/
     │   ├── scan_project_domain.py    — Extracts types, enums, imports, README
-    │   └── scan_string_usage.py      — Finds string key usages with code context
+    │   ├── scan_string_usage.py      — Finds string key usages with code context
+    │   └── extract_translation_values.py — Extracts translation values for grammar review
     └── references/
         └── cldr-plural-rules.md      — Plural categories for 40+ languages
 ```
@@ -72,6 +74,7 @@ skills/
 - **Code-aware comments** — knows a key is used in a `Button()` vs `.navigationTitle()` vs `.alert()`
 - **Key vs value awareness** — translates from the source value, not the key name
 - **Preserves existing work** — flags suspicious translations as `needs_review`
+- **Grammar checking** — reviews translations for spelling, grammar, punctuation, and terminology consistency
 
 ## Requirements
 

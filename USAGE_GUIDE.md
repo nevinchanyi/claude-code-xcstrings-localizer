@@ -6,10 +6,11 @@ The `xcstrings-localizer.skill` file is a packaged skill containing:
 
 ```
 xcstrings-localizer/
-├── SKILL.md                           — Instructions for Claude (3 commands)
+├── SKILL.md                           — Instructions for Claude (4 commands)
 ├── scripts/
 │   ├── scan_project_domain.py         — Extracts app domain context from Swift code
-│   └── scan_string_usage.py           — Finds where each string key is used in code
+│   ├── scan_string_usage.py           — Finds where each string key is used in code
+│   └── extract_translation_values.py  — Extracts translation values for grammar review
 └── references/
     └── cldr-plural-rules.md           — Plural form rules for 40+ languages
 ```
@@ -49,26 +50,26 @@ unzip xcstrings-localizer.skill -d ~/.claude/skills/xcstrings-localizer
 
 ---
 
-## The 3-Command Pipeline
+## The 4-Command Pipeline
 
-The skill has three commands. You can run them in order for best results, or use any one standalone.
+The skill has four commands. You can run them in order for best results, or use any one standalone.
 
 ```
-┌──────────────┐     ┌────────────────────┐     ┌──────────────┐
-│  1. Scan      │ ──▶ │  2. Generate        │ ──▶ │  3. Localize  │
-│     Domain    │     │     Comments        │     │              │
-│              │     │                    │     │              │
-│ Understands   │     │ Scans Swift code    │     │ Translates    │
-│ your app's    │     │ to write context-   │     │ with correct  │
-│ domain &      │     │ aware translator    │     │ plural forms  │
-│ terminology   │     │ comments into       │     │ & domain-     │
-│              │     │ .xcstrings          │     │ accurate      │
-│ Output:       │     │                    │     │ terms         │
-│ domain_report │     │ Output:             │     │              │
-│ .md           │     │ commented           │     │ Output:       │
-│              │     │ .xcstrings          │     │ localized     │
-│              │     │                    │     │ .xcstrings    │
-└──────────────┘     └────────────────────┘     └──────────────┘
+┌──────────────┐     ┌────────────────────┐     ┌──────────────┐     ┌──────────────┐
+│  1. Scan      │ ──▶ │  2. Generate        │ ──▶ │  3. Localize  │ ──▶ │  4. Check     │
+│     Domain    │     │     Comments        │     │              │     │     Grammar   │
+│              │     │                    │     │              │     │              │
+│ Understands   │     │ Scans Swift code    │     │ Translates    │     │ Reviews all   │
+│ your app's    │     │ to write context-   │     │ with correct  │     │ translations  │
+│ domain &      │     │ aware translator    │     │ plural forms  │     │ for spelling, │
+│ terminology   │     │ comments into       │     │ & domain-     │     │ grammar, and  │
+│              │     │ .xcstrings          │     │ accurate      │     │ consistency   │
+│ Output:       │     │                    │     │ terms         │     │              │
+│ domain_report │     │ Output:             │     │              │     │ Output:       │
+│ .md           │     │ commented           │     │ Output:       │     │ grammar      │
+│              │     │ .xcstrings          │     │ localized     │     │ report +     │
+│              │     │                    │     │ .xcstrings    │     │ optional fix  │
+└──────────────┘     └────────────────────┘     └──────────────┘     └──────────────┘
 ```
 
 ---
@@ -148,6 +149,37 @@ or
 
 ---
 
+## Command 4: Check Grammar
+
+**Purpose:** Review all translation values for spelling, grammar, punctuation, capitalization consistency, and terminology consistency. Produces a report organized by language and severity, with optional auto-fix.
+
+**What to provide:**
+- Your `.xcstrings` file (with existing translations)
+- Optionally: specific languages to check
+- Optionally: the domain report from Command 1
+
+**What to say:**
+
+> Check grammar in my Localizable.xcstrings translations.
+
+or
+
+> Proofread the Ukrainian and German translations in my xcstrings file.
+
+or
+
+> Quality check my translations and fix any errors.
+
+**What you get back:**
+- A report organized by language with issues sorted by severity:
+  - **Errors:** spelling, broken grammar, wrong plural forms
+  - **Warnings:** punctuation issues, capitalization/terminology inconsistencies
+  - **Info:** overly literal phrasing, length warnings
+- Cross-language consistency checks (missing translations, punctuation mismatches)
+- Optional auto-fix: Claude presents before/after for each fix and applies them after your approval
+
+---
+
 ## Full Workflow Example
 
 Here's a typical session from start to finish. Adapt to your own project.
@@ -180,7 +212,13 @@ Claude translates everything using:
 - CLDR plural rules (Ukrainian gets 4 forms, Japanese gets 1)
 - Code context from comments (buttons kept short, alerts kept clear)
 
-### Step 5: Verify and use
+### Step 5: Check grammar
+
+> Check grammar in my translations.
+
+Claude reviews all translations and produces a report with errors, warnings, and suggestions. If issues are found, you can ask Claude to auto-fix them.
+
+### Step 6: Verify and use
 
 Download the output `.xcstrings` file. Open it in Xcode — it should load cleanly with all languages populated. Build your project to verify no warnings about missing plural forms or format specifiers.
 

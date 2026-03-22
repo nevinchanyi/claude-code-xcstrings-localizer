@@ -1,17 +1,18 @@
 ---
 name: xcstrings-localizer
-description: "Localize, validate, and manage Apple .xcstrings (String Catalog) files for iOS/macOS apps. Trigger whenever the user works with .xcstrings files, Localizable.xcstrings, String Catalogs, iOS app localization, pluralization, or translation of app strings. Also trigger for adding languages to Xcode projects, fixing plural forms, generating translator comments, scanning code for string context, or mapping project domain/terminology for accurate translations. Trigger phrases include 'localize my app', 'translate these strings', 'add comments to my strings', 'scan my project', 'prepare for translation'. Three commands: (1) Scan Domain - analyze project to build a glossary of ambiguous terms for translation accuracy, (2) Generate Comments - scan Swift/Storyboard/XIB code to write context-aware translator comments, (3) Localize - translate with correct CLDR plural rules, format specifier preservation, and domain-aware term disambiguation."
+description: "Localize, validate, and manage Apple .xcstrings (String Catalog) files for iOS/macOS apps. Trigger whenever the user works with .xcstrings files, Localizable.xcstrings, String Catalogs, iOS app localization, pluralization, or translation of app strings. Also trigger for adding languages to Xcode projects, fixing plural forms, generating translator comments, scanning code for string context, mapping project domain/terminology for accurate translations, or checking grammar in translations. Trigger phrases include 'localize my app', 'translate these strings', 'add comments to my strings', 'scan my project', 'prepare for translation', 'check grammar', 'proofread my translations', 'review my strings', 'quality check', 'validate translation quality'. Four commands: (1) Scan Domain - analyze project to build a glossary of ambiguous terms for translation accuracy, (2) Generate Comments - scan Swift/Storyboard/XIB code to write context-aware translator comments, (3) Localize - translate with correct CLDR plural rules, format specifier preservation, and domain-aware term disambiguation, (4) Check Grammar - review translation values for spelling, grammar, punctuation, capitalization consistency, and terminology consistency."
 ---
 
 # xcstrings Localizer
 
-A skill for localizing Apple .xcstrings (String Catalog) files. It has three commands that can be used independently or as a pipeline:
+A skill for localizing Apple .xcstrings (String Catalog) files. It has four commands that can be used independently or as a pipeline:
 
 1. **Scan Domain** — Analyze the project to understand its domain, features, and terminology. Produces a domain report that guides accurate translations (e.g., knowing "trip" means a driving trip in a mileage tracker, not a vacation).
 2. **Generate Comments** — Scan the project's source code, find where each string key is used, and write context-aware comments into the .xcstrings file. This prepares the file for translation.
 3. **Localize** — Translate the .xcstrings file to target languages with correct plural forms, grammar validation, and format specifier preservation. Uses the domain report (if available) to choose contextually accurate translations.
+4. **Check Grammar** — Review translation values across all languages for spelling, grammar, punctuation, capitalization consistency, and terminology consistency. Produces a report organized by language and severity, with optional auto-fix.
 
-The recommended workflow is: scan domain → generate comments → localize. But each command works standalone.
+The recommended workflow is: scan domain → generate comments → localize → check grammar. But each command works standalone.
 
 ---
 
@@ -376,6 +377,162 @@ Ask the user their preference:
 - **Partial**: Only modified entries or a specific language — useful for very large files.
 
 Write to `/home/claude/Localizable.xcstrings`, then copy to `/mnt/user-data/outputs/`.
+
+---
+
+## Command 4: Check Grammar
+
+**When to use:** The user wants to review translation quality in their .xcstrings file. They may say things like "check grammar", "proofread my translations", "review my strings", "quality check my localization", "find errors in translations", "check spelling in my xcstrings", "validate translation quality".
+
+**What you need from the user:**
+- The .xcstrings file (uploaded or path provided)
+- Optionally: specific languages to check (default: all languages present)
+- Optionally: a domain report from Command 1 (improves terminology consistency checks)
+- Optionally: whether to auto-fix issues or just report them
+
+### Step 0: Load domain context (if available)
+
+Same as Command 3. If a domain report exists (from Command 1, or a `domain_report.md` the user provides), read it before checking. The glossary enables terminology consistency checking — if the glossary says "trip" should be "поїздка" in Ukrainian, flag any translation that uses "подорож" for the same concept.
+
+### Step 1: Extract translation values
+
+Run the bundled script `scripts/extract_translation_values.py` to extract all translation values into a flat structure for review:
+
+```bash
+python3 <skill-dir>/scripts/extract_translation_values.py \
+  --xcstrings /path/to/Localizable.xcstrings \
+  --languages en,uk,de \
+  --output /home/claude/grammar_check_input.json
+```
+
+If `--languages` is omitted, all languages present in the file are extracted.
+
+Output format:
+```json
+{
+  "sourceLanguage": "en",
+  "languages": ["en", "uk", "de"],
+  "entries": [
+    {
+      "key": "welcome_title",
+      "comment": "Large title on welcome screen",
+      "type": "simple",
+      "values": {
+        "en": "Welcome to Mileafy",
+        "uk": "Ласкаво просимо до Mileafy",
+        "de": "Willkommen bei Mileafy"
+      },
+      "format_specifiers": []
+    },
+    {
+      "key": "trips_count",
+      "comment": "Trip count on dashboard. %lld = number.",
+      "type": "plural",
+      "values": {
+        "en": { "one": "%lld trip", "other": "%lld trips" },
+        "uk": { "one": "%lld поїздка", "few": "%lld поїздки", "many": "%lld поїздок", "other": "%lld поїздок" }
+      },
+      "format_specifiers": ["%lld"]
+    }
+  ]
+}
+```
+
+### Step 2: Check each language
+
+For each target language (not the source language — source language grammar is checked in Command 3's Step 2), review every translation value for issues organized by severity:
+
+**Severity: Error** (these cause incorrect user-facing text)
+1. **Spelling errors** — misspelled words in the target language
+2. **Broken grammar** — subject-verb disagreement, wrong case endings, incorrect conjugation, wrong gender agreement
+3. **Plural form mismatch** — a plural variant uses the wrong grammatical number (e.g., the `one` form says "trips" instead of "trip", or Ukrainian `one` uses plural "поїздки" instead of singular "поїздка")
+4. **Format specifier context** — grammar around placeholders is incorrect (e.g., wrong preposition before `%@` that would not work with possible substituted values, or wrong grammatical case that doesn't agree with the placeholder's role in the sentence)
+
+**Severity: Warning** (these indicate inconsistency or quality issues)
+5. **Punctuation issues** — missing terminal punctuation where other strings in the same role have it, unbalanced quotes/brackets/parentheses, wrong quotation mark style for the language (e.g., German uses „…" not "…")
+6. **Capitalization inconsistency** — within the same language, similar UI elements use different capitalization patterns (e.g., some button labels Title Case, others sentence case). Group by UI role if comments indicate it.
+7. **Terminology inconsistency** — the same source-language term is translated differently across strings without justification (e.g., "Settings" translated as both "Einstellungen" and "Konfiguration" in German). If a domain glossary is available, also flag translations that deviate from the glossary.
+
+**Severity: Info** (suggestions for improvement)
+8. **Overly literal translation** — phrasing that is grammatically correct but sounds unnatural to a native speaker
+9. **Length warning** — translation is significantly longer than source (more than 150%), which may cause UI truncation, especially for buttons, tab labels, and navigation titles
+
+**Rules for checking:**
+- Format specifiers (`%@`, `%lld`, `%d`, `%f`, positional variants like `%1$@`) are NOT grammar errors — they are runtime placeholders. Check that the surrounding grammar works correctly with what they represent.
+- If a comment explains what `%@` is replaced with (e.g., "a username"), use that context to verify grammatical correctness around the placeholder.
+- For plural forms, verify that each category (`zero`, `one`, `two`, `few`, `many`, `other`) uses the grammatically correct number form for that language. Reference `references/cldr-plural-rules.md` to understand what numbers each category covers.
+- Skip entries with `shouldTranslate: false`.
+- If the user explicitly asks to also check the source language, do so — but by default only check target languages.
+
+### Step 3: Cross-language consistency checks
+
+After checking each language individually, perform cross-language checks:
+
+1. **Missing translations** — keys that have translations in some languages but not others (informational)
+2. **Inconsistent punctuation across languages** — if the source uses `"..."` (ellipsis character) but some translations use `"..."` (three dots), or vice versa
+3. **Inconsistent brand/proper noun handling** — app name or product names should generally stay untranslated; flag if translated inconsistently
+
+### Step 4: Produce the report
+
+Present the report as markdown, organized by language, then by severity:
+
+```markdown
+# Grammar Check Report
+
+**File:** Localizable.xcstrings
+**Languages checked:** en, uk, de, fr
+**Total strings checked:** 142
+**Issues found:** 23
+
+## Ukrainian (uk) — 12 issues
+
+### Errors (3)
+| Key | Value | Issue |
+|-----|-------|-------|
+| `welcome_title` | "Ласкаво просимо до Mileafi" | Spelling: app name misspelled. Should be "Mileafy" |
+| `trips_count.one` | "%lld поїздки" | Plural: `one` form should use singular "поїздка", not plural "поїздки" |
+| `delete_confirm` | "Ви впевнені що хочете видалити?" | Missing comma after "впевнені" |
+
+### Warnings (5)
+| Key | Value | Issue |
+|-----|-------|-------|
+| `save_button` | "зберегти" | Capitalization: other buttons use title case ("Скасувати"), this is lowercase |
+| `settings_title` vs `preferences_title` | "Налаштування" vs "Параметри" | Terminology: "Settings" translated inconsistently |
+| ... | ... | ... |
+
+### Info (4)
+| Key | Value | Issue |
+|-----|-------|-------|
+| `onboarding_description` | "Цей застосунок допомагає..." | Length: 180% of source length, may truncate in UI |
+| ... | ... | ... |
+
+## German (de) — 11 issues
+...
+
+## Cross-Language Issues (2)
+| Issue | Details |
+|-------|---------|
+| Missing translations | `new_feature_title` missing in: de, fr |
+| Punctuation mismatch | `loading_message`: source uses "…" but de uses "..." |
+```
+
+### Step 5: Auto-fix (optional)
+
+If the user requested auto-fix mode:
+
+1. Apply corrections for **Error** and **Warning** severity issues only
+2. Present each fix with before/after for user approval:
+   ```
+   trips_count.one [uk]:
+     Before: "%lld поїздки"
+     After:  "%lld поїздка"
+     Reason: `one` form requires singular noun
+   ```
+3. After user confirms, write the corrected .xcstrings file using `json.dump(data, f, ensure_ascii=False, indent=2)`
+4. Run the standard output validation checklist (see below)
+5. Never auto-fix **Info** items — those are subjective suggestions
+
+If the user did not request auto-fix, present the report and ask if they want any issues fixed.
 
 ---
 

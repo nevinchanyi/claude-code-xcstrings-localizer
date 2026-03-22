@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 /Users/kostiantynnevinchanyi/Projects/claude-code-xcstrings-localizer/xcstrings-localizer/skills/xcstrings-localizer/scripts/extract_translation_values.py --xcstrings /Users/kostiantynnevinchanyi/Projects/claude-code-xcstrings-localizer/xcstrings-localizer/xcstrings-localizer/evals/test_input.xcstrings --output /tmp/test_grammar_extract.json)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\(''/tmp/test_grammar_extract.json''\\)\\); [print\\(e[''key''], e[''format_specifiers'']\\) for e in d[''entries''] if e[''format_specifiers'']]\")",
+      "Bash(rm -f xcstrings-localizer.skill)",
+      "Bash(zip -r ../xcstrings-localizer.skill xcstrings-localizer/ -x \"*.DS_Store\")"
+    ]
+  }
+}

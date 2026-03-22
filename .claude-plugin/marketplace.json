@@ -7,12 +7,12 @@
   "plugins": [
     {
       "name": "xcstrings-localizer",
-      "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, and format specifier validation. Three commands: Scan Domain, Generate Comments, Localize.",
+      "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, format specifier validation, and grammar checking. Four commands: Scan Domain, Generate Comments, Localize, Check Grammar.",
       "source": {
         "source": "github",
         "repo": "aspect-build/xcstrings-localizer"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "localization",
       "keywords": [
         "xcstrings",
