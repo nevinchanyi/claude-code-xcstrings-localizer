@@ -8,7 +8,7 @@ A Claude Code plugin for localizing Apple `.xcstrings` (String Catalog) files wi
 
 ```bash
 # Add the marketplace
-/plugin marketplace add YOUR_USERNAME/xcstrings-localizer
+/plugin marketplace add nevinchanyi/claude-code-xcstrings-localizer
 
 # Install the plugin
 /plugin install xcstrings-localizer
