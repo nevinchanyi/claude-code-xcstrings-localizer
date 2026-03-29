@@ -7,12 +7,12 @@
   "plugins": [
     {
       "name": "xcstrings-localizer",
-      "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, format specifier validation, and grammar checking. Four commands: Scan Domain, Generate Comments, Localize, Check Grammar.",
+      "description": "Localize Apple .xcstrings files with CLDR plural rules, domain-aware translations, code-context comments, format specifier validation, grammar checking, and automatic plural form detection. Five commands: Scan Domain, Generate Comments, Localize, Check Grammar, Fix Plurals.",
       "source": {
         "source": "github",
         "repo": "nevinchanyi/claude-code-xcstrings-localizer"
       },
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "localization",
       "keywords": [
         "xcstrings",

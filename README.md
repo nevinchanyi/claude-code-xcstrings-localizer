@@ -40,6 +40,7 @@ cp -r skills/xcstrings-localizer ~/.claude/skills/
 | 2 | **Generate Comments** | Scans Swift/Storyboard/XIB code to find string key usage, writes context + translator guidance into `.xcstrings` |
 | 3 | **Localize** | Translates with correct CLDR plural forms per language, preserved `%@`/`%lld` specifiers, and domain-accurate terms |
 | 4 | **Check Grammar** | Reviews translations for spelling, grammar, punctuation, capitalization and terminology consistency across all languages |
+| 5 | **Fix Plurals** | Detects simple strings with `%lld`/`%d` that need plural forms and converts them to proper CLDR plural variations |
 
 ## Usage
 
@@ -57,11 +58,12 @@ See [USAGE_GUIDE.md](USAGE_GUIDE.md) for the full step-by-step walkthrough.
 └── marketplace.json                  — Marketplace catalog (single plugin)
 skills/
 └── xcstrings-localizer/
-    ├── SKILL.md                      — Skill instructions (4 commands)
+    ├── SKILL.md                      — Skill instructions (5 commands)
     ├── scripts/
     │   ├── scan_project_domain.py    — Extracts types, enums, imports, README
     │   ├── scan_string_usage.py      — Finds string key usages with code context
-    │   └── extract_translation_values.py — Extracts translation values for grammar review
+    │   ├── extract_translation_values.py — Extracts translation values for grammar review
+    │   └── detect_plural_candidates.py — Finds strings needing plural form conversion
     └── references/
         └── cldr-plural-rules.md      — Plural categories for 40+ languages
 ```
@@ -75,6 +77,7 @@ skills/
 - **Key vs value awareness** — translates from the source value, not the key name
 - **Preserves existing work** — flags suspicious translations as `needs_review`
 - **Grammar checking** — reviews translations for spelling, grammar, punctuation, and terminology consistency
+- **Plural form detection** — finds simple strings that should have plural variations and converts them automatically
 
 ## Requirements
 

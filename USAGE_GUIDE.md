@@ -6,11 +6,12 @@ The `xcstrings-localizer.skill` file is a packaged skill containing:
 
 ```
 xcstrings-localizer/
-├── SKILL.md                           — Instructions for Claude (4 commands)
+├── SKILL.md                           — Instructions for Claude (5 commands)
 ├── scripts/
 │   ├── scan_project_domain.py         — Extracts app domain context from Swift code
 │   ├── scan_string_usage.py           — Finds where each string key is used in code
-│   └── extract_translation_values.py  — Extracts translation values for grammar review
+│   ├── extract_translation_values.py  — Extracts translation values for grammar review
+│   └── detect_plural_candidates.py    — Finds strings needing plural form conversion
 └── references/
     └── cldr-plural-rules.md           — Plural form rules for 40+ languages
 ```
@@ -50,26 +51,26 @@ unzip xcstrings-localizer.skill -d ~/.claude/skills/xcstrings-localizer
 
 ---
 
-## The 4-Command Pipeline
+## The 5-Command Pipeline
 
-The skill has four commands. You can run them in order for best results, or use any one standalone.
+The skill has five commands. You can run them in order for best results, or use any one standalone.
 
 ```
-┌──────────────┐     ┌────────────────────┐     ┌──────────────┐     ┌──────────────┐
-│  1. Scan      │ ──▶ │  2. Generate        │ ──▶ │  3. Localize  │ ──▶ │  4. Check     │
-│     Domain    │     │     Comments        │     │              │     │     Grammar   │
-│              │     │                    │     │              │     │              │
-│ Understands   │     │ Scans Swift code    │     │ Translates    │     │ Reviews all   │
-│ your app's    │     │ to write context-   │     │ with correct  │     │ translations  │
-│ domain &      │     │ aware translator    │     │ plural forms  │     │ for spelling, │
-│ terminology   │     │ comments into       │     │ & domain-     │     │ grammar, and  │
-│              │     │ .xcstrings          │     │ accurate      │     │ consistency   │
-│ Output:       │     │                    │     │ terms         │     │              │
-│ domain_report │     │ Output:             │     │              │     │ Output:       │
-│ .md           │     │ commented           │     │ Output:       │     │ grammar      │
-│              │     │ .xcstrings          │     │ localized     │     │ report +     │
-│              │     │                    │     │ .xcstrings    │     │ optional fix  │
-└──────────────┘     └────────────────────┘     └──────────────┘     └──────────────┘
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ 1. Scan       │ ──▶ │ 2. Generate   │ ──▶ │ 3. Fix        │ ──▶ │ 4. Localize   │ ──▶ │ 5. Check      │
+│    Domain     │     │    Comments   │     │    Plurals    │     │              │     │    Grammar   │
+│              │     │              │     │              │     │              │     │              │
+│ Understands   │     │ Scans code    │     │ Detects       │     │ Translates    │     │ Reviews all   │
+│ your app's    │     │ to write      │     │ strings that  │     │ with correct  │     │ translations  │
+│ domain &      │     │ translator    │     │ need plural   │     │ plural forms  │     │ for spelling  │
+│ terminology   │     │ comments      │     │ forms and     │     │ & domain-     │     │ & consistency │
+│              │     │              │     │ converts them │     │ accurate      │     │              │
+│ Output:       │     │ Output:       │     │              │     │ terms         │     │ Output:       │
+│ domain_report │     │ commented     │     │ Output:       │     │              │     │ grammar      │
+│ .md           │     │ .xcstrings    │     │ pluralized    │     │ Output:       │     │ report       │
+│              │     │              │     │ .xcstrings    │     │ localized     │     │              │
+│              │     │              │     │              │     │ .xcstrings    │     │              │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
 ---
@@ -180,6 +181,32 @@ or
 
 ---
 
+## Command 5: Fix Plurals
+
+**Purpose:** Detect simple strings with integer format specifiers (`%lld`, `%d`) that should have plural variations, and automatically convert them to proper CLDR plural forms for all languages.
+
+**What to provide:**
+- Your `.xcstrings` file
+
+**What to say:**
+
+> Fix plural forms in my Localizable.xcstrings.
+
+or
+
+> Some of my strings with %lld don't have plural variations. Fix them.
+
+or
+
+> Add plural forms for all languages in my xcstrings file.
+
+**What you get back:**
+- A list of detected candidates for review before changes are made
+- Converted entries with correct plural categories per language (e.g., English: one/other, Ukrainian: one/few/many/other)
+- A summary of what was converted and which categories were added
+
+---
+
 ## Full Workflow Example
 
 Here's a typical session from start to finish. Adapt to your own project.
@@ -203,7 +230,13 @@ Claude will output a domain report. Review the glossary — correct any terms if
 
 Claude scans the Swift files, finds where each key is used, and writes comments. Download the updated `.xcstrings`.
 
-### Step 4: Localize
+### Step 4: Fix plurals
+
+> Fix plural forms in my xcstrings file.
+
+Claude detects strings like `"%lld recording"` that are stored as simple values but need plural variations. It converts them to proper plural forms for all languages.
+
+### Step 5: Localize
 
 > Localize to Ukrainian, German, Japanese, and French.
 
@@ -212,13 +245,13 @@ Claude translates everything using:
 - CLDR plural rules (Ukrainian gets 4 forms, Japanese gets 1)
 - Code context from comments (buttons kept short, alerts kept clear)
 
-### Step 5: Check grammar
+### Step 6: Check grammar
 
 > Check grammar in my translations.
 
 Claude reviews all translations and produces a report with errors, warnings, and suggestions. If issues are found, you can ask Claude to auto-fix them.
 
-### Step 6: Verify and use
+### Step 7: Verify and use
 
 Download the output `.xcstrings` file. Open it in Xcode — it should load cleanly with all languages populated. Build your project to verify no warnings about missing plural forms or format specifiers.
 

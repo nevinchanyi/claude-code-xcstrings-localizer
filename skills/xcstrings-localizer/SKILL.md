@@ -1,18 +1,19 @@
 ---
 name: xcstrings-localizer
-description: "Localize, validate, and manage Apple .xcstrings (String Catalog) files for iOS/macOS apps. Trigger whenever the user works with .xcstrings files, Localizable.xcstrings, String Catalogs, iOS app localization, pluralization, or translation of app strings. Also trigger for adding languages to Xcode projects, fixing plural forms, generating translator comments, scanning code for string context, mapping project domain/terminology for accurate translations, or checking grammar in translations. Trigger phrases include 'localize my app', 'translate these strings', 'add comments to my strings', 'scan my project', 'prepare for translation', 'check grammar', 'proofread my translations', 'review my strings', 'quality check', 'validate translation quality'. Four commands: (1) Scan Domain - analyze project to build a glossary of ambiguous terms for translation accuracy, (2) Generate Comments - scan Swift/Storyboard/XIB code to write context-aware translator comments, (3) Localize - translate with correct CLDR plural rules, format specifier preservation, and domain-aware term disambiguation, (4) Check Grammar - review translation values for spelling, grammar, punctuation, capitalization consistency, and terminology consistency."
+description: "Localize and manage Apple .xcstrings (String Catalog) files. Trigger for .xcstrings, localization, translation, pluralization, string catalogs, translator comments, grammar checking, or fixing plural forms. Trigger phrases: 'localize my app', 'translate strings', 'add comments', 'scan project', 'check grammar', 'proofread translations', 'fix plurals', 'quality check'. Five commands: (1) Scan Domain - build domain glossary for translation accuracy, (2) Generate Comments - code-context translator comments, (3) Localize - translate with CLDR plural rules and format specifier preservation, (4) Check Grammar - review translations for spelling, grammar, and consistency, (5) Fix Plurals - detect and convert simple strings to proper plural variations for all languages."
 ---
 
 # xcstrings Localizer
 
-A skill for localizing Apple .xcstrings (String Catalog) files. It has four commands that can be used independently or as a pipeline:
+A skill for localizing Apple .xcstrings (String Catalog) files. It has five commands that can be used independently or as a pipeline:
 
 1. **Scan Domain** — Analyze the project to understand its domain, features, and terminology. Produces a domain report that guides accurate translations (e.g., knowing "trip" means a driving trip in a mileage tracker, not a vacation).
 2. **Generate Comments** — Scan the project's source code, find where each string key is used, and write context-aware comments into the .xcstrings file. This prepares the file for translation.
 3. **Localize** — Translate the .xcstrings file to target languages with correct plural forms, grammar validation, and format specifier preservation. Uses the domain report (if available) to choose contextually accurate translations.
 4. **Check Grammar** — Review translation values across all languages for spelling, grammar, punctuation, capitalization consistency, and terminology consistency. Produces a report organized by language and severity, with optional auto-fix.
+5. **Fix Plurals** — Detect simple strings with integer format specifiers that should have plural variations, and convert them to proper `variations.plural` with CLDR-correct categories for all languages.
 
-The recommended workflow is: scan domain → generate comments → localize → check grammar. But each command works standalone.
+The recommended workflow is: scan domain → generate comments → fix plurals → localize → check grammar. But each command works standalone.
 
 ---
 
@@ -533,6 +534,187 @@ If the user requested auto-fix mode:
 5. Never auto-fix **Info** items — those are subjective suggestions
 
 If the user did not request auto-fix, present the report and ask if they want any issues fixed.
+
+---
+
+## Command 5: Fix Plurals
+
+**When to use:** The user has strings that represent counts but are stored as simple `stringUnit` entries instead of proper plural `variations`. They may say things like "fix plurals", "fix plural forms", "add plural variations", "pluralize my strings", "my strings need plural forms", "convert to plural".
+
+This commonly happens when:
+- A developer writes `Text("\(count) recordings")` and Swift extracts it as `"%@ recordings"` with `%@` instead of `%lld` — the specifier is wrong AND there are no plural forms
+- A developer writes `Text("\(count) recording")` and the string is extracted as a simple value `"%lld recording"` without plural variants
+- A string contains **multiple countable nouns** with separate `%lld` values, e.g., `"You have %lld minutes and %lld speakers"` — both "minutes" and "speakers" need plural forms
+- The Localize command translated a simple string as-is, without converting it to plural
+- Strings were added manually without plural structure
+
+**What you need from the user:**
+- The .xcstrings file (uploaded or path provided)
+- Optionally: specific keys to fix (default: detect all candidates automatically)
+- Optionally: target languages (default: all languages present in the file)
+
+### Step 1: Detect plural candidates
+
+Run the bundled script `scripts/detect_plural_candidates.py` to find simple strings that should have plural forms:
+
+```bash
+python3 <skill-dir>/scripts/detect_plural_candidates.py \
+  --xcstrings /path/to/Localizable.xcstrings \
+  --output /home/claude/plural_candidates.json
+```
+
+The script identifies entries where:
+- The value contains an integer format specifier (`%lld`, `%d`, `%ld`) — these represent counts and need plural forms
+- The value contains `%@` followed by a countable noun (e.g., `"%@ recordings"`, `"%@ items"`) — these are likely counts where the developer used string interpolation (`\(count)`) instead of integer formatting, resulting in `%@` instead of `%lld`
+- The entry is stored as a simple `stringUnit`, not as `variations.plural`
+- The entry is not marked `shouldTranslate: false`
+
+It also detects entries that already have `variations.plural` in some languages but are missing plural categories in others (e.g., English has `one`/`other` but Ukrainian was added as a simple `stringUnit`).
+
+**Important: `%@` with countable nouns.** When Swift code uses `"\(count) recordings"` where `count` is an `Int`, Swift's string interpolation converts it to `%@` (generic substitution), not `%lld` (integer). This is a common mistake. The Fix Plurals command should:
+1. Flag these as candidates
+2. Recommend the developer change the Swift code to use `%lld` instead (e.g., change `"\(count) recordings"` to a properly keyed string with `%lld`)
+3. Fix the `.xcstrings` entry: change `%@` to `%lld` in the value and add plural variations
+
+Strings with `%@` that are NOT followed by a countable noun (e.g., `"Hello, %@"` where `%@` is a name) should NOT be flagged.
+
+### Step 2: Present candidates for confirmation
+
+Show the user each candidate and explain why it needs pluralization:
+
+```markdown
+## Plural Candidates Found: 6
+
+| # | Key | Current Value | Issue |
+|---|-----|---------------|-------|
+| 1 | `%@ recordings` | "%@ recordings" (simple) | `%@` should be `%lld` for pluralization. Needs one/other in en, one/few/many/other in uk |
+| 2 | `%lld recording` | "%lld recording" (simple) | Needs one/other forms in English, one/few/many/other in Ukrainian |
+| 3 | `%lld file selected` | "%lld file selected" (simple) | Needs plural variations for all 3 languages |
+| 4 | `transcription_summary` | "You have %lld minutes and %lld speakers" | ⚠️ Multiple countable nouns — needs to be split into separate strings for proper pluralization |
+| 5 | `trips_count` | Has plural in en, but uk is simple | Ukrainian needs one/few/many/other, currently has simple stringUnit |
+
+⚠️ Entry #1: `%@` used for a count — recommend changing Swift code to use `%lld`.
+⚠️ Entry #4: Multiple countable nouns in one string — see "Multiple counts" below.
+
+Proceed with all, or specify which to fix?
+```
+
+### Step 3: Convert to plural variations
+
+For each confirmed candidate, for each language present in the file:
+
+**3a. Read CLDR rules**
+
+Read `references/cldr-plural-rules.md` to determine the required plural categories for each target language. Examples:
+- English: `one`, `other`
+- Ukrainian: `one`, `few`, `many`, `other`
+- Japanese: `other` only
+- Arabic: `zero`, `one`, `two`, `few`, `many`, `other`
+
+**3b. Convert source language**
+
+Transform the simple `stringUnit` into `variations.plural` with grammatically correct forms for each category.
+
+**Before:**
+```json
+"en": {
+  "stringUnit": { "state": "translated", "value": "%lld recording" }
+}
+```
+
+**After:**
+```json
+"en": {
+  "variations": {
+    "plural": {
+      "one": { "stringUnit": { "state": "translated", "value": "%lld recording" } },
+      "other": { "stringUnit": { "state": "translated", "value": "%lld recordings" } }
+    }
+  }
+}
+```
+
+For the source language, you must generate the correct grammatical form for each category:
+- `one` → singular form ("`%lld recording`")
+- `other` → plural form ("`%lld recordings`")
+
+This requires understanding the noun in context — don't just add/remove "s". Handle irregular plurals correctly (e.g., "child" → "children", "mouse" → "mice").
+
+**3c. Convert target languages**
+
+For each target language, generate ALL required CLDR categories with grammatically correct translations:
+
+**Ukrainian (one/few/many/other):**
+```json
+"uk": {
+  "variations": {
+    "plural": {
+      "one": { "stringUnit": { "state": "translated", "value": "%lld запис" } },
+      "few": { "stringUnit": { "state": "translated", "value": "%lld записи" } },
+      "many": { "stringUnit": { "state": "translated", "value": "%lld записів" } },
+      "other": { "stringUnit": { "state": "translated", "value": "%lld записів" } }
+    }
+  }
+}
+```
+
+Each plural form must be fully grammatically correct — change nouns, verbs, adjectives, and any other words that need to agree with the number. Not just the noun.
+
+**3d. Preserve metadata**
+
+- Keep the `comment` field (sibling to `localizations`)
+- Keep `extractionState` if present
+- Set `state` to `"translated"` for all new plural forms
+- Preserve format specifiers exactly (`%lld` stays `%lld`)
+
+### Step 4: Handle edge cases
+
+- **Multiple countable nouns in one string (critical):** When a string contains two or more `%lld` values each followed by a countable noun — e.g., `"You have %lld minutes and %lld speakers"` — iOS's plural system **cannot** handle this in a single entry. The `variations.plural` mechanism only pluralizes the entire string based on ONE number. For multiple independent counts, the developer MUST split the string. Report this to the user with a concrete recommendation:
+
+  ```
+  ⚠️ "You have %lld minutes and %lld speakers" has 2 countable nouns.
+
+  iOS plural variations can only vary on one number per string entry.
+  Recommended fix — split into composed parts in Swift:
+
+    let minutes = String(localized: "\(minuteCount) minutes")  // → "%lld minutes" with plural
+    let speakers = String(localized: "\(speakerCount) speakers") // → "%lld speakers" with plural
+    let summary = String(localized: "You have \(minutes) and identified \(speakers)")
+
+  This creates 3 xcstrings entries, each properly pluralizable.
+  ```
+
+  If the user cannot change the code, offer a **best-effort fallback**: create plural variations based on the FIRST `%lld` and use the plural/other form of the second noun (since `other` is the most common case). Flag the entry with `"state": "needs_review"` and explain the limitation.
+
+- **`%@` with countable noun:** When the value is like `"%@ recordings"`, the `%@` came from `\(count)` in Swift. Fix the `.xcstrings` value by replacing `%@` with `%lld`, then create plural variations. Tell the user they should also update their Swift code to use `String(localized:)` with `%lld` instead of string interpolation, so the plural form is selected correctly at runtime.
+- **String already has `variations.plural` for all languages:** Skip it entirely
+- **String has `variations.plural` in some languages but `stringUnit` in others:** Only convert the `stringUnit` languages to plural; preserve existing plural forms
+- **String has `variations.plural` but is missing categories:** Add the missing categories (e.g., Ukrainian has only `one`/`other` but needs `few`/`many` too)
+- **Key-equals-value pattern:** If the key is the source text (e.g., key = `"%lld recording"`), use the key as the source for generating plural forms. The key itself is never changed.
+- **No source language value:** If only the key exists with no `localizations` entry, and the key contains `%lld` + a countable noun, use the key as the source text
+
+### Step 5: Validate and output
+
+Run the output validation checklist (see below). Additionally verify:
+- Every converted entry has the correct number of plural categories per CLDR rules
+- Every plural form contains the same format specifiers as the source
+- No `stringUnit` was left where `variations.plural` should be
+
+Present a summary:
+
+```markdown
+## Fix Plurals Summary
+
+**Converted:** 5 strings
+**Languages:** en, uk, de
+**Skipped:** 2 strings (already had correct plural forms)
+
+| Key | Categories Added |
+|-----|-----------------|
+| `%lld recording` | en: one/other, uk: one/few/many/other, de: one/other |
+| `%lld file selected` | en: one/other, uk: one/few/many/other, de: one/other |
+| `%lld day ago` | en: one/other, uk: one/few/many/other, de: one/other |
+```
 
 ---
 
